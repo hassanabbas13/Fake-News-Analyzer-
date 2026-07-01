@@ -1,16 +1,22 @@
 # Fake News Analyzer (Django)
 
-A web application that analyzes news headlines and articles for **fake-news indicators** using a transparent, rule-based scoring system — then explains *why* it reached its verdict.
+A web application that analyzes news headlines and articles for **fake-news indicators** using a transparent, rule-based scoring system. It then explains *why* it reached its verdict.
 
----
+## About the Project
+
+The Fake News Analyzer allows users to paste a news headline and article text into a form. The system scans the text for known fake news indicators, emotional language, and credibility markers. Based on what it finds, it calculates a score and classifies the article as Likely Real, Suspicious, or Likely Fake.
+This is a rule based heuristic classifier, not a machine learning model. This was a deliberate design choice so the reasoning is fully transparent and explainable rather than a black box. Every analysis shows a full breakdown of the keywords and patterns that matched, so the user knows exactly why the system reached its conclusion.
+All analyses are saved to the database and viewable on a dashboard with charts and statistics.
 
 ## What it does
 
 Paste in a headline (and optional article text) and the analyzer:
 
-1. Scans for **fake-news keywords** (clickbait/sensational terms) → `+2` each
-2. Scans for **emotional/exaggeration patterns** (`!!!`, `URGENT`, `MUST SEE`, …) → `+1` each
-3. Scans for **reliable-reporting keywords** (`study`, `peer reviewed`, `according to`, …) → `−2` each
+1. It scans for fake news keywords like shocking, miracle, unbelievable and conspiracy. Each match adds 2 points to the score.
+2. It scans for emotional and exaggeration patterns like exclamation marks, URGENT, OMG and MUST SEE. Each match adds 1 point.
+3. It scans for reliable reporting keywords like study, research, peer reviewed, journal and according to. Each match subtracts 2 points.
+
+
 4. Classifies the result:
 
 | Score | Verdict |
@@ -26,8 +32,18 @@ It then shows a full breakdown of every keyword/pattern that matched, so the cla
 Analyses are saved to the database and viewable on a dashboard.
 
 ---
+## Features
+
+The application has four main pages.
+
+1. The Home Page introduces the project and gives users a button to start analyzing news.
+2. The Analyze Page has a form where users enter a headline and article text. Once submitted, the system runs the analysis instantly.
+3. The Result Page shows the classification with a color coded card. Green means Likely Real, yellow means Suspicious and red means Likely Fake. It also lists exactly which keywords were detected and how the score was calculated.
+4. The Dashboard Page displays a pie chart showing the distribution of results, a bar chart of the most commonly detected fake keywords, summary statistics and a table of recent analyses.
 
 ## Run it
+
+Make sure Python is installed on your computer. Then open a terminal and run the following commands.
 
 ```bash
 python -m pip install django
