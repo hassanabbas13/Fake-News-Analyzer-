@@ -1,0 +1,247 @@
+<!--
+dashboard.html — Analytics Dashboard
+=======================================
+Shows:
+  - Summary stat cards (total, real, suspicious, fake)
+  - Pie chart (distribution of results)
+  - Bar chart (most common fake keywords)
+  - Table of recent analyses
+
+Charts are rendered using Chart.js (loaded from CDN).
+Chart data is fetched via JavaScript from the /api/dashboard-data/ endpoint.
+-->
+{% extends "analyzer/base.html" %}
+
+{% block title %}Dashboard — Fake News Analyzer{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+    <div class="container">
+        <div class="text-center mb-4">
+            <h1 class="fw-bold">
+                <i class="bi bi-bar-chart-line text-primary me-2"></i>Analytics Dashboard
+            </h1>
+            <p class="text-muted">Overview of all news analyses performed</p>
+        </div>
+
+        {% if total == 0 %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h3 class="mt-3">No Analyses Yet</h3>
+            <p class="text-muted">Start analyzing news to see data here.</p>
+            <a href="{% url 'analyze' %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-search me-2"></i>Analyze News Now
+            </a>
+        </div>
+        {% else %}
+
+        <!-- ============================================================ -->
+        <!-- STAT CARDS                                                    -->
+        <!-- ============================================================ -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="stat-card stat-total">
+                    <div class="stat-icon"><i class="bi bi-clipboard-data"></i></div>
+                    <div class="stat-number">{{ total }}</div>
+                    <div class="stat-label">Total Analyses</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card stat-real">
+                    <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+                    <div class="stat-number">{{ real_count }}</div>
+                    <div class="stat-label">Likely Real ({{ real_pct }}%)</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card stat-suspicious">
+                    <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                    <div class="stat-number">{{ suspicious_count }}</div>
+                    <div class="stat-label">Suspicious ({{ suspicious_pct }}%)</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card stat-fake">
+                    <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
+                    <div class="stat-number">{{ fake_count }}</div>
+                    <div class="stat-label">Likely Fake ({{ fake_pct }}%)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- CHARTS ROW                                                    -->
+        <!-- ============================================================ -->
+        <div class="row g-4 mb-4">
+            <!-- Pie Chart -->
+            <div class="col-md-5">
+                <div class="card chart-card h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">
+                            <i class="bi bi-pie-chart me-2"></i>Result Distribution
+                        </h5>
+                        <div class="chart-container">
+                            <canvas id="pieChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Bar Chart -->
+            <div class="col-md-7">
+                <div class="card chart-card h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">
+                            <i class="bi bi-bar-chart me-2"></i>Most Common Fake Keywords
+                        </h5>
+                        <div class="chart-container">
+                            <canvas id="barChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- RECENT ANALYSES TABLE                                         -->
+        <!-- ============================================================ -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-clock-history me-2"></i>Recent Analyses
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="analyses-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Headline</th>
+                                <th>Result</th>
+                                <th>Score</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in recent %}
+                            <tr>
+                                <td>{{ item.id }}</td>
+                                <td class="headline-cell">{{ item.headline|truncatewords:12 }}</td>
+                                <td>
+                                    {% if item.result_label == 'Likely Real' %}
+                                        <span class="badge bg-success">✅ {{ item.result_label }}</span>
+                                    {% elif item.result_label == 'Suspicious' %}
+                                        <span class="badge bg-warning text-dark">⚠️ {{ item.result_label }}</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">❌ {{ item.result_label }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ item.score }}</strong></td>
+                                <td>{{ item.analyzed_at|date:"M j, Y" }}</td>
+                                <td>
+                                    <a href="{% url 'result' item.id %}" class="btn btn-sm btn-outline-primary">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if total > 0 %}
+<!-- Chart.js CDN — loaded only on dashboard page -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+<script>
+/**
+ * Dashboard Charts
+ * ================
+ * We fetch data from our Django API endpoint (/api/dashboard-data/)
+ * and render two charts using Chart.js:
+ *   1. Pie Chart — shows distribution of Real/Suspicious/Fake
+ *   2. Bar Chart — shows most common fake keywords detected
+ */
+
+// Fetch chart data from our API
+fetch("{% url 'dashboard_data' %}")
+    .then(response => response.json())
+    .then(data => {
+        // ---- PIE CHART ----
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        new Chart(pieCtx, {
+            type: 'doughnut',  // doughnut is a pie chart with a hole
+            data: {
+                labels: data.pie_data.labels,
+                datasets: [{
+                    data: data.pie_data.counts,
+                    backgroundColor: [
+                        '#198754',  // Green for Real
+                        '#ffc107',  // Yellow for Suspicious
+                        '#dc3545',  // Red for Fake
+                    ],
+                    borderWidth: 3,
+                    borderColor: '#fff',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 20, font: { size: 13 } }
+                    }
+                }
+            }
+        });
+
+        // ---- BAR CHART ----
+        if (data.bar_data.labels.length > 0) {
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.bar_data.labels,
+                    datasets: [{
+                        label: 'Times Detected',
+                        data: data.bar_data.counts,
+                        backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                        borderColor: '#dc3545',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        },
+                        x: {
+                            ticks: { font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading chart data:', error);
+    });
+</script>
+{% endif %}
+{% endblock %}

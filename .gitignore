@@ -1,0 +1,31 @@
+# ---- Docs & notes: keep locally, do NOT push ----
+*.pdf
+*.docx
+*.pptx
+# keep README.md (repo front page); ignore all other markdown
+*.md
+!README.md
+prompt.txt
+Testing.txt
+
+# ---- Django / Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+db.sqlite3-journal
+*.log
+local_settings.py
+.pytest_cache/
+
+# ---- Virtual envs ----
+venv/
+.venv/
+env/
+
+# ---- OS / editor cruft ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

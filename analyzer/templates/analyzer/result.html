@@ -1,0 +1,166 @@
+<!--
+result.html — Analysis Result Page
+=====================================
+Shows the classification result with color coding:
+  - Green  = Likely Real
+  - Yellow = Suspicious
+  - Red    = Likely Fake
+Also shows score breakdown and matched keywords.
+-->
+{% extends "analyzer/base.html" %}
+
+{% block title %}Result: {{ analysis.result_label }} — Fake News Analyzer{% endblock %}
+
+{% block content %}
+<section class="result-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                
+                <!-- Result Card — color changes based on classification -->
+                <div class="card result-card {{ result_class }}">
+                    <div class="card-body text-center p-5">
+                        <div class="result-icon-large mb-3">{{ result_icon }}</div>
+                        <h1 class="fw-bold mb-2">{{ analysis.result_label }}</h1>
+                        <div class="score-badge">
+                            Score: {{ analysis.score }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analyzed Headline -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">
+                            <i class="bi bi-newspaper me-2"></i>Analyzed Headline
+                        </h5>
+                        <p class="lead mb-0">"{{ analysis.headline }}"</p>
+                        {% if analysis.article_text %}
+                            <hr>
+                            <h6 class="fw-bold">Article Text:</h6>
+                            <p class="text-muted">{{ analysis.article_text|truncatewords:100 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Score Breakdown -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">
+                            <i class="bi bi-list-check me-2"></i>Score Breakdown
+                        </h5>
+                        
+                        <!-- Scoring Rules -->
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Score Range</th>
+                                        <th>Classification</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="{% if analysis.result_label == 'Likely Real' %}table-success{% endif %}">
+                                        <td>0 – 2</td>
+                                        <td>✅ Likely Real</td>
+                                    </tr>
+                                    <tr class="{% if analysis.result_label == 'Suspicious' %}table-warning{% endif %}">
+                                        <td>3 – 6</td>
+                                        <td>⚠️ Suspicious</td>
+                                    </tr>
+                                    <tr class="{% if analysis.result_label == 'Likely Fake' %}table-danger{% endif %}">
+                                        <td>7+</td>
+                                        <td>❌ Likely Fake</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Matched Keywords -->
+                        {% if matched.fake %}
+                        <div class="keyword-section mb-3">
+                            <h6 class="text-danger fw-bold">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Fake Indicators Found ({{ matched.fake|length }} × +2 points each)
+                            </h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for kw in matched.fake %}
+                                    <span class="badge bg-danger-subtle text-danger px-3 py-2">{{ kw }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if matched.emotional %}
+                        <div class="keyword-section mb-3">
+                            <h6 class="text-warning fw-bold">
+                                <i class="bi bi-emoji-angry me-1"></i>
+                                Emotional Language Found ({{ matched.emotional|length }} × +1 point each)
+                            </h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for pattern in matched.emotional %}
+                                    <span class="badge bg-warning-subtle text-warning px-3 py-2">{{ pattern }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if matched.reliable %}
+                        <div class="keyword-section mb-3">
+                            <h6 class="text-success fw-bold">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Reliable Indicators Found ({{ matched.reliable|length }} × -2 points each)
+                            </h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for kw in matched.reliable %}
+                                    <span class="badge bg-success-subtle text-success px-3 py-2">{{ kw }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if not matched.fake and not matched.emotional and not matched.reliable %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No specific fake or reliable indicators were detected. The text appears neutral.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Warning Message (if suspicious or fake) -->
+                {% if analysis.result_label != 'Likely Real' %}
+                <div class="card mt-4 border-warning">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-warning">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Warning
+                        </h6>
+                        <p class="mb-0">
+                            This analysis is based on keyword pattern matching only. 
+                            It is NOT a definitive fact-check. Always verify news from 
+                            multiple trusted sources before sharing.
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-3 mt-4 justify-content-center flex-wrap">
+                    <a href="{% url 'analyze' %}" class="btn btn-primary btn-lg" id="btn-analyze-another">
+                        <i class="bi bi-search me-2"></i>Analyze Another
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-lg" id="btn-view-dashboard">
+                        <i class="bi bi-bar-chart-line me-2"></i>View Dashboard
+                    </a>
+                </div>
+
+                <!-- Timestamp -->
+                <p class="text-center text-muted mt-3 small">
+                    <i class="bi bi-clock me-1"></i>
+                    Analyzed on {{ analysis.analyzed_at|date:"F j, Y" }} at {{ analysis.analyzed_at|time:"g:i A" }}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
